@@ -6,6 +6,38 @@ if (!isset($_SESSION['admin_username'])) {
     header("Location: admin_login.php");
     exit();
 }
+
+// Include the database connection configuration
+require_once 'db_config.php';
+
+// Function to delete a post by ID
+function deletePost($conn, $post_id) {
+    $sql = "DELETE FROM posts WHERE id = ?";
+    $stmt = mysqli_prepare($conn, $sql);
+
+    if ($stmt) {
+        mysqli_stmt_bind_param($stmt, "i", $post_id);
+        mysqli_stmt_execute($stmt);
+    }
+}
+
+// Check if the 'action' parameter is present in the URL
+if (isset($_GET['action'])) {
+    $action = $_GET['action'];
+    $post_id = $_GET['id'];
+
+    if ($action === 'delete') {
+        // Delete the post and redirect back to the dashboard
+        deletePost($conn, $post_id);
+        header("Location: admin_dashboard.php");
+        exit();
+    } elseif ($action === 'edit') {
+        // Redirect to the edit post page
+        header("Location: edit_post.php?id=$post_id");
+        exit();
+    }
+}
+
 ?>
 
 <!DOCTYPE html>
@@ -15,41 +47,39 @@ if (!isset($_SESSION['admin_username'])) {
     <link rel="stylesheet" type="text/css" href="./css/dash.css">
 </head>
 <body>
-    <div class="container">
-        <h1>Welcome, <?php echo $_SESSION['admin_username']; ?></h1>
+    <h1>Welcome, <?php echo $_SESSION['admin_username']; ?></h1>
 
-        <div class="dashboard-card">
-            <h2>Recent Posts</h2>
-            <?php
-            // Include the database connection configuration
-            require_once 'db_config.php';
+    <a href="create_post.php">Create New Post</a>
+    <br>
 
-            // Fetch recent posts from the database
-            $sql = "SELECT * FROM posts ORDER BY published_at DESC LIMIT 5";
-            $result = mysqli_query($conn, $sql);
+    <?php
+    // Fetch posts from the database
+    $sql = "SELECT * FROM posts ORDER BY published_at DESC";
+    $result = mysqli_query($conn, $sql);
 
-            if (mysqli_num_rows($result) > 0) {
-                while ($row = mysqli_fetch_assoc($result)) {
-                    ?>
-                    <p>
-                        <a href="post.php?id=<?php echo $row['id']; ?>"><?php echo htmlspecialchars($row['title']); ?></a>
-                        <br>
-                        <span class="published-at">Published on: <?php echo htmlspecialchars($row['published_at']); ?></span>
-                    </p>
-                    <?php
-                }
-            } else {
-                echo "<p>No posts found.</p>";
-            }
-
-            // Close the database connection
-            mysqli_close($conn);
+    // Check if there are posts to display
+    if (mysqli_num_rows($result) > 0) {
+        while ($row = mysqli_fetch_assoc($result)) {
             ?>
-        </div>
+            <div class="post-card">
+                <h2><?php echo htmlspecialchars($row['title']); ?></h2>
+                <p class="published-at">Published on: <?php echo htmlspecialchars($row['published_at']); ?></p>
+                <p><?php echo substr(htmlspecialchars($row['content']), 0, 200) . '...'; ?></p>
+                <div class="post-actions">
+                    <a href="admin_dashboard.php?action=edit&id=<?php echo $row['id']; ?>">Edit</a>
+                    <a href="admin_dashboard.php?action=delete&id=<?php echo $row['id']; ?>">Delete</a>
+                </div>
+            </div>
+            <hr>
+            <?php
+        }
+    } else {
+        echo "<p>No posts found.</p>";
+    }
 
-        <!-- Add more dashboard cards or sections as needed -->
+    // Close the database connection
+    mysqli_close($conn);
+    ?>
 
-    </div>
-    <!-- TODO: Display a list of existing posts and options to edit/delete -->
 </body>
 </html>
